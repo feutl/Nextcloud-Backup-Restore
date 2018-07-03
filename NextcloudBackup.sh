@@ -8,6 +8,14 @@
 #
 
 #
+# ADOPTIONS
+# - Apache2 as Webserver
+# - Rainloop Webmail Integration
+# - Nextcloud DATA directory needs not backup, because it is a mounted NFS/SMB share
+# - Nextcloud DB and Rainloop DB need to use the same DB credentials
+#
+
+#
 # IMPORTANT
 # You have to customize this script (directories, users, etc.) for your actual environment.
 # All entries which need to be customized are tagged with "TODO".
@@ -21,13 +29,12 @@ backupMainDir="/mnt/Share/NextcloudBackups/"
 backupdir="${backupMainDir}/${currentDate}/"
 # TODO: The directory of your Nextcloud installation (this is a directory under your web root)
 nextcloudFileDir="/var/www/nextcloud"
-# TODO: The directory of your Nextcloud data directory (outside the Nextcloud file directory)
-# If your data directory is located under Nextcloud's file directory (somewhere in the web root), the data directory should not be a separate part of the backup
-nextcloudDataDir="/var/nextcloud_data"
 # TODO: The service name of the web server. Used to start/stop web server (e.g. 'service <webserverServiceName> start')
-webserverServiceName="nginx"
+webserverServiceName="apache2"
 # TODO: Your Nextcloud database name
 nextcloudDatabase="nextcloud_db"
+# TODO: Your Rainloop database name
+rainloopDatabase="rainloop_db"
 # TODO: Your Nextcloud database user
 dbUser="nextcloud_db_user"
 # TODO: The password of the Nextcloud database user
@@ -42,6 +49,7 @@ maxNrOfBackups=0
 fileNameBackupFileDir="nextcloud-filedir.tar.gz"
 fileNameBackupDataDir="nextcloud-datadir.tar.gz"
 fileNameBackupDb="nextcloud-db.sql"
+fileNameBackupDb2="rainloop-db.sql"
 
 # Function for error messages
 errorecho() { cat <<< "$@" 1>&2; }
@@ -92,16 +100,14 @@ tar -cpzf "${backupdir}/${fileNameBackupFileDir}" -C "${nextcloudFileDir}" .
 echo "Done"
 echo
 
-echo "Creating backup of Nextcloud data directory..."
-tar -cpzf "${backupdir}/${fileNameBackupDataDir}"  -C "${nextcloudDataDir}" .
-echo "Done"
-echo
-
 #
 # Backup DB
 #
 echo "Backup Nextcloud database..."
 mysqldump --single-transaction -h localhost -u "${dbUser}" -p"${dbPassword}" "${nextcloudDatabase}" > "${backupdir}/${fileNameBackupDb}"
+echo "Done"
+echo "Backup Rainloop database..."
+mysqldump --single-transaction -h localhost -u "${dbUser}" -p"${dbPassword}" "${rainloopDatabase}" > "${backupdir}/${fileNameBackupDb2}"
 echo "Done"
 echo
 

@@ -8,6 +8,14 @@
 #
 
 #
+# ADOPTIONS
+# - Apache2 as Webserver
+# - Rainloop Webmail Integration
+# - Nextcloud DATA directory needs not backup, because it is a mounted NFS/SMB share
+# - Nextcloud DB and Rainloop DB need to use the same DB credentials
+#
+
+#
 # IMPORTANT
 # You have to customize this script (directories, users, etc.) for your actual environment.
 # All entries which need to be customized are tagged with "TODO".
@@ -20,13 +28,12 @@ restore=$1
 currentRestoreDir="${mainBackupDir}/${restore}"
 # TODO: The directory of your Nextcloud installation (this is a directory under your web root)
 nextcloudFileDir="/var/www/nextcloud"
-# TODO: The directory of your Nextcloud data directory (outside the Nextcloud file directory)
-# If your data directory is located under Nextcloud's file directory (somewhere in the web root), the data directory should not be restored separately
-nextcloudDataDir="/var/nextcloud_data"
 # TODO: The service name of the web server. Used to start/stop web server (e.g. 'service <webserverServiceName> start')
-webserverServiceName="nginx"
+webserverServiceName="apache2"
 # TODO: Your Nextcloud database name
 nextcloudDatabase="nextcloud_db"
+# TODO: Your Rainloop database name
+rainloopDatabase="rainloop_db"
 # TODO: Your Nextcloud database user
 dbUser="nextcloud_db_user"
 # TODO: The password of the Nextcloud database user
@@ -39,6 +46,7 @@ webserverUser="www-data"
 fileNameBackupFileDir="nextcloud-filedir.tar.gz"
 fileNameBackupDataDir="nextcloud-datadir.tar.gz"
 fileNameBackupDb="nextcloud-db.sql"
+fileNameBackupDb2="rainloop-db.sql"
 
 # Function for error messages
 errorecho() { cat <<< "$@" 1>&2; }
@@ -98,22 +106,11 @@ mkdir -p "${nextcloudFileDir}"
 echo "Done"
 echo
 
-echo "Deleting old Nextcloud data directory..."
-rm -r "${nextcloudDataDir}"
-mkdir -p "${nextcloudDataDir}"
-echo "Done"
-echo
-
 #
 # Restore file and data directory
 #
 echo "Restoring Nextcloud file directory..."
 tar -xpzf "${currentRestoreDir}/${fileNameBackupFileDir}" -C "${nextcloudFileDir}"
-echo "Done"
-echo
-
-echo "Restoring Nextcloud data directory..."
-tar -xpzf "${currentRestoreDir}/${fileNameBackupDataDir}" -C "${nextcloudDataDir}"
 echo "Done"
 echo
 
@@ -130,8 +127,25 @@ mysql -h localhost -u "${dbUser}" -p"${dbPassword}" -e "CREATE DATABASE ${nextcl
 echo "Done"
 echo
 
+echo "Dropping old Rainloop DB..."
+mysql -h localhost -u "${dbUser}" -p"${dbPassword}" -e "DROP DATABASE ${rainloopDatabase}"
+echo "Done"
+echo
+
+echo "Creating new DB for Rainloop..."
+mysql -h localhost -u "${dbUser}" -p"${dbPassword}" -e "CREATE DATABASE ${rainloopDatabase}"
+echo "Done"
+echo
+
+
 echo "Restoring backup DB..."
+
+echo "Nextcloud DB"
 mysql -h localhost -u "${dbUser}" -p"${dbPassword}" "${nextcloudDatabase}" < "${currentRestoreDir}/${fileNameBackupDb}"
+echo "Done"
+
+echo "Rainloop DB"
+mysql -h localhost -u "${dbUser}" -p"${dbPassword}" "${rainloopDatabase}" < "${currentRestoreDir}/${fileNameBackupDb2}"
 echo "Done"
 echo
 
@@ -148,7 +162,6 @@ echo
 #
 echo "Setting directory permissions..."
 chown -R "${webserverUser}":"${webserverUser}" "${nextcloudFileDir}"
-chown -R "${webserverUser}":"${webserverUser}" "${nextcloudDataDir}"
 echo "Done"
 echo
 
